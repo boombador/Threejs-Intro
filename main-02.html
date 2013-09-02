@@ -1,0 +1,123 @@
+
+<!doctype html>
+
+<html>
+<head>
+    <meta name="author" content="Ian McLaughlin">
+    <title>Three JS Intro: Part 1</title>
+</head>
+
+<body>
+<script type="text/javascript" src="common/ThreeDebug.js"></script>
+<script type="text/javascript" src="common/THREEx.KeyboardState.js"></script>
+<script type="text/javascript" src="common/FlyControls.js"></script>
+<script>
+
+function Ship() {
+    this.maxSpeed = .2;
+    this.loaded = false;
+
+    return this;
+}
+
+Ship.prototype.init = function( loader, scene ){
+    this.scene = scene;
+    var that = this;
+    loader.load( "common/viper.js", function(geometry){
+        that.loadMesh(geometry);
+    });
+};
+
+Ship.prototype.loadMesh = function( geometry ) {
+    this.geoBody = geometry;
+    this.matBody = new THREE.MeshNormalMaterial();
+    this.body = new THREE.Mesh( this.geoBody, this.matBody );
+
+    this.body.scale.set( .4, .4, .4 );
+    this.body.position.set( 0, 0, 0 );
+    this.body.overdraw = true;
+
+    this.scene.add(this.body);
+    this.loaded = true;
+    console.log("Ship loaded");
+};
+
+var keyboard = new THREEx.KeyboardState();
+var scene = new THREE.Scene(); // the scene object contains a reference to everything in our digital world
+
+// calculate screen dimensions
+var margin = 30;
+var width = window.innerWidth - 2*margin;
+var height = window.innerHeight - 2*margin;
+
+// the camera object keeps track of the visual reference point of the scene
+// it also defines certain visual parameters analogous to those present in
+// real cameras
+var camera = new THREE.PerspectiveCamera(
+    75,         // angle of the FOV, a large angle is like a wide angle lens
+    width / height, // the aspect ratio of the screen
+    0.1,        // objects closer than this won't be picked up by the camera
+    1000        // objects further than this won't be either
+);
+
+// here we set up some of the basics of the renderer, later we'll use it to draw the scene
+var renderer = new THREE.WebGLRenderer(); // the webgl implementation is faster if it's supported on your browser
+// var renderer = new THREE.CanvasRenderer(); // use this line instead if your browser doesn't suppor WebGL
+renderer.setSize( width, height );
+document.body.appendChild( renderer.domElement );
+renderer.domElement.style.marginLeft = margin + 'px';
+
+var red = new THREE.MeshBasicMaterial( { color: 0xff0000 } );
+var cylinderGeometry = new THREE.CylinderGeometry( 10, 10, .5, 32, 10, true );
+var wall = new THREE.Mesh( cylinderGeometry, red );
+wall.material.side = THREE.DoubleSide; // render back of faces as well
+scene.add( wall );
+
+// initiate the ship
+var loader = new THREE.JSONLoader();
+var ship = new Ship();
+ship.init( loader, scene );
+
+// let's move the camera from it's default position at the origin and point
+// it back there to get a good look at the cube
+var origin = new THREE.Vector3( 0, 0, 0 );
+camera.position.y = 5;
+camera.position.x = 13;
+camera.lookAt(origin);
+
+var mapRadius = 10
+var state = 'loading';
+var clock = new THREE.Clock(false);
+var speed = .05; // adjust this movement speed to taste
+
+function render() {
+    if (state == 'loading') {
+        if (ship.loaded) {
+            controls = new THREE.FlyControls( ship.body );
+            controls.movementSpeed = 10;
+            controls.rollSpeed = Math.PI / 6;
+            controls.autoForward = false;
+            controls.dragToLook = false;
+
+            state = 'main';
+            console.log("game starting");
+            clock.start();
+        }
+    } else if (state == 'main') {
+        if (ship.body.position.length() > mapRadius) {
+            renderer.render(scene, camera);
+            console.log("You have died");
+            return;
+        }
+        var delta = clock.getDelta();
+        controls.update( delta );
+    }
+
+    requestAnimationFrame(render);
+    renderer.render(scene, camera);
+}
+render();
+
+</script>
+</body>
+</html>
