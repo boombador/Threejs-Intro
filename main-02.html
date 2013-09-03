@@ -21,7 +21,6 @@ function Ship() {
 
 Ship.prototype.init = function( loader, scene ){
     this.scene = scene;
-    this.vel = new THREE.Vector3( 0, 0, 0 );
     var that = this;
     loader.load( "common/viper.js", function(geometry){
         that.loadMesh(geometry);
