@@ -5,66 +5,86 @@ THREE.GravControls = function ( object ) {
 
     this.object = object;
 	this.object.useQuaternion = true;
-    this.movementSpeed = 5;
-    this.rollSpeed = Math.PI / 3;
+    this.accLinear = 1;
+    this.accAngular = Math.PI / 3;
 	this.dragToLook = false;
 	this.autoForward = false;
 
 	this.tmpQuaternion = new THREE.Quaternion();
-	this.moveState = {
-        up: 0, down: 0, left: 0, right: 0, forward: 0, back: 0,
-        pitchUp: 0, pitchDown: 0, yawLeft: 0, yawRight: 0,
-        rollLeft: 0, rollRight: 0
-    };
 	this.moveVector = new THREE.Vector3( 0, 0, 0 );
 	this.rotationVector = new THREE.Vector3( 0, 0, 0 );
-    // this.velocity = new THREE.Vector3( 0, 0, 0 );
+    this.velocity = new THREE.Vector3( 0, 0, 0 );
+};
 
-    this.update = function( delta ) {
+THREE.GravControls.prototype = {
 
-        this.moveState.forward = keyboard.pressed( "w" ) ? 1 : 0;
-        this.moveState.back = keyboard.pressed( "s" ) ? 1 : 0;
-        this.moveState.left = keyboard.pressed( "a" ) ? 1 : 0;
-        this.moveState.right = keyboard.pressed( "d" ) ? 1 : 0;
-        this.moveState.up = keyboard.pressed( "r" ) ? 1 : 0;
-        this.moveState.down = keyboard.pressed( "f" ) ? 1 : 0;
-        this.moveState.pitchUp = keyboard.pressed( "up" ) ? 1 : 0;
-        this.moveState.pitchDown = keyboard.pressed( "down" ) ? 1 : 0;
-        this.moveState.yawLeft = keyboard.pressed( "left" ) ? 1 : 0;
-        this.moveState.yawRight = keyboard.pressed( "right" ) ? 1 : 0;
-        this.moveState.rollLeft = keyboard.pressed( "q" ) ? 1 : 0;
-        this.moveState.rollRight = keyboard.pressed( "e" ) ? 1 : 0;
+    constructor: THREE.GravControls,
 
+    rotate: function() {
+        var angularThrust = {
+            pitchUp: 0, pitchDown: 0,
+            yawLeft: 0, yawRight: 0,
+            rollLeft: 0, rollRight: 0
+        };
+        return function ( delta ) {
+            var rotMult = delta * this.accAngular;
+            angularThrust.pitchUp = keyboard.pressed( "up" ) ? 1 : 0;
+            angularThrust.pitchDown = keyboard.pressed( "down" ) ? 1 : 0;
+            angularThrust.yawLeft = keyboard.pressed( "left" ) ? 1 : 0;
+            angularThrust.yawRight = keyboard.pressed( "right" ) ? 1 : 0;
+            angularThrust.rollLeft = keyboard.pressed( "q" ) ? 1 : 0;
+            angularThrust.rollRight = keyboard.pressed( "e" ) ? 1 : 0;
+
+            this.rotationVector.x = ( -angularThrust.pitchDown + angularThrust.pitchUp );
+            this.rotationVector.y = ( -angularThrust.yawRight  + angularThrust.yawLeft );
+            this.rotationVector.z = ( -angularThrust.rollRight + angularThrust.rollLeft );
+
+            // perform update
+            this.tmpQuaternion.set(
+                    this.rotationVector.x * rotMult,
+                    this.rotationVector.y * rotMult,
+                    this.rotationVector.z * rotMult, 1
+                    ).normalize();
+            this.object.quaternion.multiply( this.tmpQuaternion );
+
+            // expose the rotation vector for convenience
+            this.object.rotation.setEulerFromQuaternion( this.object.quaternion, this.object.eulerOrder );
+        };
+
+    }(),
+
+    translate: function() {
+        var thrust = {
+            up: 0, down: 0, left: 0, right: 0, forward: 0, back: 0,
+        };
+        return function ( delta ) {
+            var moveMult = delta * this.accLinear;
+            thrust.forward = keyboard.pressed( "w" ) ? 1 : 0;
+            thrust.back = keyboard.pressed( "s" ) ? 1 : 0;
+            thrust.left = keyboard.pressed( "a" ) ? 1 : 0;
+            thrust.right = keyboard.pressed( "d" ) ? 1 : 0;
+            thrust.up = keyboard.pressed( "r" ) ? 1 : 0;
+            thrust.down = keyboard.pressed( "f" ) ? 1 : 0;
+
+            var forward = (
+                    thrust.forward || ( this.autoForward && !thrust.back )
+                    ) ? 1 : 0;
+            this.moveVector.x = ( -thrust.left    + thrust.right );
+            this.moveVector.y = ( -thrust.down    + thrust.up );
+            this.moveVector.z = ( -forward + thrust.back );
+
+            this.object.translateOnAxis( this.moveVector, moveMult );
+            /*
+            console.log( this.velocity );
+            this.velocity.add( this.moveVector.multiplyScalar( moveMult ));
+            this.object.position.add( this.velocity );
+            */
+        };
+    }(),
+
+    update: function( delta ) {
         // update moveVector
-        var moveMult = delta * this.movementSpeed;
-        var rotMult = delta * this.rollSpeed;
-
-        var forward = (
-                this.moveState.forward || ( this.autoForward && !this.moveState.back )
-                ) ? 1 : 0;
-        this.moveVector.x = ( -this.moveState.left    + this.moveState.right );
-        this.moveVector.y = ( -this.moveState.down    + this.moveState.up );
-        this.moveVector.z = ( -forward + this.moveState.back );
-
-
-        this.object.translateX( this.moveVector.x * moveMult );
-        this.object.translateY( this.moveVector.y * moveMult );
-        this.object.translateZ( this.moveVector.z * moveMult );
-
-        // update rotationVector
-        this.rotationVector.x = ( -this.moveState.pitchDown + this.moveState.pitchUp );
-        this.rotationVector.y = ( -this.moveState.yawRight  + this.moveState.yawLeft );
-        this.rotationVector.z = ( -this.moveState.rollRight + this.moveState.rollLeft );
-
-        // perform update
-        this.tmpQuaternion.set(
-                this.rotationVector.x * rotMult,
-                this.rotationVector.y * rotMult,
-                this.rotationVector.z * rotMult, 1
-                ).normalize();
-        this.object.quaternion.multiply( this.tmpQuaternion );
-
-        // expose the rotation vector for convenience
-        this.object.rotation.setEulerFromQuaternion( this.object.quaternion, this.object.eulerOrder );
-    };
+        this.translate( delta );
+        this.rotate( delta );
+    }
 };
