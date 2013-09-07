@@ -11,10 +11,14 @@ THREE.GravControls = function ( object ) {
 	this.autoForward = false;
 
 	this.tmpQuaternion = new THREE.Quaternion();
-
-	this.moveState = { up: 0, down: 0, left: 0, right: 0, forward: 0, back: 0, pitchUp: 0, pitchDown: 0, yawLeft: 0, yawRight: 0, rollLeft: 0, rollRight: 0 };
+	this.moveState = {
+        up: 0, down: 0, left: 0, right: 0, forward: 0, back: 0,
+        pitchUp: 0, pitchDown: 0, yawLeft: 0, yawRight: 0,
+        rollLeft: 0, rollRight: 0
+    };
 	this.moveVector = new THREE.Vector3( 0, 0, 0 );
 	this.rotationVector = new THREE.Vector3( 0, 0, 0 );
+    // this.velocity = new THREE.Vector3( 0, 0, 0 );
 
     this.update = function( delta ) {
 
@@ -32,10 +36,20 @@ THREE.GravControls = function ( object ) {
         this.moveState.rollRight = keyboard.pressed( "e" ) ? 1 : 0;
 
         // update moveVector
-        var forward = ( this.moveState.forward || ( this.autoForward && !this.moveState.back ) ) ? 1 : 0;
+        var moveMult = delta * this.movementSpeed;
+        var rotMult = delta * this.rollSpeed;
+
+        var forward = (
+                this.moveState.forward || ( this.autoForward && !this.moveState.back )
+                ) ? 1 : 0;
         this.moveVector.x = ( -this.moveState.left    + this.moveState.right );
         this.moveVector.y = ( -this.moveState.down    + this.moveState.up );
         this.moveVector.z = ( -forward + this.moveState.back );
+
+
+        this.object.translateX( this.moveVector.x * moveMult );
+        this.object.translateY( this.moveVector.y * moveMult );
+        this.object.translateZ( this.moveVector.z * moveMult );
 
         // update rotationVector
         this.rotationVector.x = ( -this.moveState.pitchDown + this.moveState.pitchUp );
@@ -43,19 +57,14 @@ THREE.GravControls = function ( object ) {
         this.rotationVector.z = ( -this.moveState.rollRight + this.moveState.rollLeft );
 
         // perform update
-        var moveMult = delta * this.movementSpeed;
-        var rotMult = delta * this.rollSpeed;
-
-        this.object.translateX( this.moveVector.x * moveMult );
-        this.object.translateY( this.moveVector.y * moveMult );
-        this.object.translateZ( this.moveVector.z * moveMult );
-
-        this.tmpQuaternion.set( this.rotationVector.x * rotMult, this.rotationVector.y * rotMult, this.rotationVector.z * rotMult, 1 ).normalize();
+        this.tmpQuaternion.set(
+                this.rotationVector.x * rotMult,
+                this.rotationVector.y * rotMult,
+                this.rotationVector.z * rotMult, 1
+                ).normalize();
         this.object.quaternion.multiply( this.tmpQuaternion );
 
         // expose the rotation vector for convenience
         this.object.rotation.setEulerFromQuaternion( this.object.quaternion, this.object.eulerOrder );
-
     };
-
 };
