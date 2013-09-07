@@ -5,7 +5,7 @@ THREE.GravControls = function ( object ) {
 
     this.object = object;
 	this.object.useQuaternion = true;
-    this.accLinear = 1;
+    this.accLinear = .5;
     this.accAngular = Math.PI / 3;
 	this.dragToLook = false;
 	this.autoForward = false;
@@ -13,7 +13,7 @@ THREE.GravControls = function ( object ) {
 	this.tmpQuaternion = new THREE.Quaternion();
 	this.moveVector = new THREE.Vector3( 0, 0, 0 );
 	this.rotationVector = new THREE.Vector3( 0, 0, 0 );
-    this.velocity = new THREE.Vector3( 0, 0, 0 );
+    this.vel = new THREE.Vector3( 0, 0, 0 );
 };
 
 THREE.GravControls.prototype = {
@@ -54,6 +54,7 @@ THREE.GravControls.prototype = {
     }(),
 
     translate: function() {
+        var dv = new THREE.Vector3();
         var thrust = {
             up: 0, down: 0, left: 0, right: 0, forward: 0, back: 0,
         };
@@ -73,18 +74,18 @@ THREE.GravControls.prototype = {
             this.moveVector.y = ( -thrust.down    + thrust.up );
             this.moveVector.z = ( -forward + thrust.back );
 
-            this.object.translateOnAxis( this.moveVector, moveMult );
-            /*
-            console.log( this.velocity );
-            this.velocity.add( this.moveVector.multiplyScalar( moveMult ));
-            this.object.position.add( this.velocity );
-            */
+            dv.copy( this.moveVector );
+            dv.applyQuaternion( this.object.quaternion );
+            dv.multiplyScalar( moveMult );
+            this.vel.add( dv );
+            this.object.position.add( this.vel );
         };
     }(),
 
     update: function( delta ) {
-        // update moveVector
+        // update ship
         this.translate( delta );
         this.rotate( delta );
     }
 };
+
